@@ -1,12 +1,14 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent } from "@/components/ui/card";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getDownloadHistory } from "@/services/apiService";
 import { formatTime, formatFileSize } from "@/lib/utils";
-import { Download, Play, FileAudio, Calendar, Clock } from "lucide-react";
+import { Download, Play, FileAudio, Calendar, Clock, Link } from "lucide-react";
 import { usePlayback } from "@/components/Layout";
+import { URLPasteBox } from "@/components/URLPasteBox";
 
 export default function DownloadsPage() {
   const { data: downloads, isLoading, isError } = useQuery({
