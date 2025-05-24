@@ -176,8 +176,11 @@ async function searchYouTube(query: string, sortBy: string = 'relevance'): Promi
     
     const apiKey = process.env.YOUTUBE_API_KEY;
     if (!apiKey) {
-      throw new Error('YouTube API key not configured');
+      console.error('YouTube API key not found in environment variables');
+      throw new Error('YouTube API key not configured - please check your API key setup');
     }
+    
+    console.log('YouTube API key found, making request...');
     
     // Search for videos using YouTube Data API
     const searchUrl = 'https://www.googleapis.com/youtube/v3/search';
