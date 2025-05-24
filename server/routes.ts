@@ -36,8 +36,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Searching for: ${query} (sort: ${sort})`);
       
-      // Search on YouTube for videos
-      const searchResults = await searchYouTube(query, sort);
+      // First try lyrics search if query looks like lyrics
+      let searchResults: SearchResult | null = null;
+      if (query.includes(' ') && query.split(' ').length > 3) {
+        searchResults = await searchByLyrics(query);
+      }
+      
+      // If no lyrics results, fall back to YouTube search
+      if (!searchResults) {
+        searchResults = await searchYouTube(query, sort);
+      }
       
       // Save search query to history
       if (searchResults.mainResult) {
@@ -164,42 +172,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
  */
 async function searchYouTube(query: string, sortBy: string = 'relevance'): Promise<SearchResult> {
   try {
-    // This would normally use the YouTube API with an API key
-    // For simplicity, we're using a basic approach with ytdl-core
+    console.log(`Searching YouTube API for: ${query}`);
     
-    // First, attempt to search by lyrics if the query seems like lyrics
-    const lyricsSearch = await searchByLyrics(query);
-    if (lyricsSearch) {
-      return lyricsSearch;
+    const apiKey = process.env.YOUTUBE_API_KEY;
+    if (!apiKey) {
+      throw new Error('YouTube API key not configured');
     }
     
-    // Otherwise, perform a regular YouTube search
-    const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
+    // Search for videos using YouTube Data API
+    const searchUrl = 'https://www.googleapis.com/youtube/v3/search';
+    const searchParams = {
+      part: 'snippet',
+      q: query,
+      type: 'video',
+      videoCategoryId: '10', // Music category
+      maxResults: 10,
+      order: sortBy === 'date' ? 'date' : 'relevance',
+      key: apiKey
+    };
     
-    const { data } = await axios.get(searchUrl);
+    const searchResponse = await axios.get(searchUrl, { params: searchParams });
+    const searchResults = searchResponse.data.items;
     
-    // Extract video IDs from the response
-    const videoIds = extractVideoIds(data);
-    
-    if (videoIds.length === 0) {
-      throw new Error('No videos found');
+    if (!searchResults || searchResults.length === 0) {
+      throw new Error('No videos found for the search query');
     }
     
-    // Get details for the main result
-    const mainVideoId = videoIds[0];
-    const mainResult = await getVideoDetails(mainVideoId);
+    // Get video details including duration and view count
+    const videoIds = searchResults.map((item: any) => item.id.videoId).join(',');
+    const detailsUrl = 'https://www.googleapis.com/youtube/v3/videos';
+    const detailsParams = {
+      part: 'snippet,contentDetails,statistics',
+      id: videoIds,
+      key: apiKey
+    };
     
-    // Get details for other results (limit to 5)
-    const otherResultsPromises = videoIds.slice(1, 6).map(id => getVideoDetails(id));
-    const otherResults = await Promise.all(otherResultsPromises);
+    const detailsResponse = await axios.get(detailsUrl, { params: detailsParams });
+    const videoDetails = detailsResponse.data.items;
+    
+    // Convert to Track objects
+    const tracks: Track[] = videoDetails.map((video: any) => {
+      const { artist, title } = parseVideoTitle(video.snippet.title);
+      
+      return {
+        id: video.id,
+        videoId: video.id,
+        title: title,
+        artist: artist,
+        thumbnailUrl: video.snippet.thumbnails?.high?.url || video.snippet.thumbnails?.default?.url,
+        duration: parseDuration(video.contentDetails.duration),
+        views: parseInt(video.statistics.viewCount || '0'),
+        description: video.snippet.description,
+        publishDate: video.snippet.publishedAt
+      };
+    });
+    
+    if (tracks.length === 0) {
+      throw new Error('Could not retrieve details for any videos');
+    }
     
     return {
-      mainResult,
-      otherResults
+      mainResult: tracks[0],
+      otherResults: tracks.slice(1)
     };
   } catch (error) {
     console.error('YouTube search error:', error);
-    throw new Error('Failed to search YouTube');
+    throw error;
   }
 }
 
