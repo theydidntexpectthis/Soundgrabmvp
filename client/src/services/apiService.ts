@@ -3,7 +3,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { mockSearchResults, mockSearchHistory, mockDownloads, mockTracks } from "./mockData";
 
 // Flag to toggle between mock data and real API
-const USE_MOCK_DATA = true; // Set to false when API is ready
+const USE_MOCK_DATA = false; // Now using real API with authentic data!
 
 /**
  * Search for tracks by query
@@ -104,21 +104,22 @@ export async function getSearchHistory(): Promise<any[]> {
  * @returns Download URL
  */
 export async function downloadTrack(track: Track, format: string = 'mp3'): Promise<string> {
-  if (USE_MOCK_DATA) {
-    console.log("Using mock download");
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    return `/api/downloads/files/${track.artist.replace(/\s+/g, '_').toLowerCase()}-${track.title.replace(/\s+/g, '_').toLowerCase()}.${format}`;
-  }
-  
-  const response = await apiRequest("POST", "/api/downloads", {
-    videoId: track.videoId,
-    format,
-    title: track.title,
-    artist: track.artist
+  const response = await fetch('/api/downloads', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      videoId: track.videoId,
+      title: track.title,
+      artist: track.artist,
+      format
+    })
   });
   
   if (!response.ok) {
-    throw new Error('Failed to download track');
+    const errorData = await response.json().catch(() => ({ error: 'Download failed' }));
+    throw new Error(errorData.error || 'Failed to download track');
   }
   
   const data = await response.json();
