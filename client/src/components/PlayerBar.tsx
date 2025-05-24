@@ -23,8 +23,9 @@ export function PlayerBar() {
   
   useEffect(() => {
     // Set up audio element
-    if (currentTrack?.previewUrl) {
-      audio.src = currentTrack.previewUrl;
+    if (currentTrack?.videoId) {
+      // Use streaming endpoint for real audio playback
+      audio.src = `/api/stream/${currentTrack.videoId}`;
       audio.volume = volume;
       audio.muted = isMuted;
       

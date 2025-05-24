@@ -110,6 +110,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Stream audio for preview playback
+  app.get('/api/stream/:videoId', async (req: Request, res: Response) => {
+    try {
+      const { videoId } = req.params;
+      
+      // Set appropriate headers for audio streaming
+      res.setHeader('Content-Type', 'audio/mpeg');
+      res.setHeader('Accept-Ranges', 'bytes');
+      res.setHeader('Cache-Control', 'no-cache');
+      
+      // Import ytdl-core dynamically
+      const ytdl = await import('ytdl-core');
+      
+      // Check if video exists and is available
+      const info = await ytdl.default.getInfo(videoId);
+      if (!info) {
+        return res.status(404).json({ error: 'Video not found' });
+      }
+      
+      // Get audio-only stream
+      const audioStream = ytdl.default(videoId, {
+        filter: 'audioonly',
+        quality: 'highestaudio' as any
+      });
+      
+      // Handle stream errors
+      audioStream.on('error', (error) => {
+        console.error('Stream error:', error);
+        if (!res.headersSent) {
+          res.status(500).json({ error: 'Streaming failed' });
+        }
+      });
+      
+      // Pipe the stream to response
+      audioStream.pipe(res);
+      
+    } catch (error) {
+      console.error('Stream error:', error);
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Failed to stream audio' });
+      }
+    }
+  });
+
   // Get download history
   app.get('/api/downloads/history', async (req: Request, res: Response) => {
     try {
