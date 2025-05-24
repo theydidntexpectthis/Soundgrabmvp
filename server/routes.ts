@@ -242,23 +242,19 @@ async function searchYouTube(query: string, sortBy: string = 'relevance'): Promi
 }
 
 /**
- * Extract video IDs from YouTube search results HTML
- * @param html YouTube search results HTML
- * @returns Array of video IDs
+ * Parse YouTube duration from ISO 8601 format (PT4M13S) to seconds
+ * @param duration ISO 8601 duration string
+ * @returns Duration in seconds
  */
-function extractVideoIds(html: string): string[] {
-  const videoIds: string[] = [];
-  const regex = /watch\?v=([a-zA-Z0-9_-]{11})/g;
-  let match;
+function parseDuration(duration: string): number {
+  const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!match) return 0;
   
-  while ((match = regex.exec(html)) !== null) {
-    const videoId = match[1];
-    if (!videoIds.includes(videoId)) {
-      videoIds.push(videoId);
-    }
-  }
+  const hours = parseInt(match[1] || '0');
+  const minutes = parseInt(match[2] || '0');
+  const seconds = parseInt(match[3] || '0');
   
-  return videoIds;
+  return hours * 3600 + minutes * 60 + seconds;
 }
 
 /**
