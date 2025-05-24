@@ -34,22 +34,34 @@ export function SearchResults({ searchQuery }: SearchResultsProps) {
   const { 
     data: searchResults, 
     isLoading, 
-    isError 
+    isError,
+    error 
   } = useQuery<SearchResult>({
     queryKey: [`search-${searchQuery}-${sortBy}`],
     queryFn: () => searchTracks(searchQuery, sortBy),
     enabled: !!searchQuery,
+    retry: 2,
+    retryDelay: 1000,
   });
   
   const handleDownload = async (track: Track, format = "mp3") => {
+    let progressToast: any;
+    
     try {
-      toast({
-        title: "Starting download",
-        description: `Preparing ${track.title} for download...`
+      // Show initial progress
+      progressToast = toast({
+        title: "Downloading...",
+        description: `Preparing ${track.title} for download`,
+        duration: 0 // Don't auto-dismiss
       });
       
       // Use our API service to download the track
       const downloadUrl = await downloadTrack(track, format);
+      
+      // Dismiss progress toast
+      if (progressToast) {
+        toast.dismiss(progressToast.id);
+      }
       
       if (downloadUrl) {
         // Create a hidden anchor to trigger download
@@ -60,19 +72,32 @@ export function SearchResults({ searchQuery }: SearchResultsProps) {
         a.click();
         document.body.removeChild(a);
         
+        // Show success message
         toast({
-          title: "Download started",
-          description: `${track.title} will be downloaded shortly`
+          title: "Download Ready! 🎵",
+          description: `${track.title} is downloading to your device`,
+          duration: 4000
         });
       } else {
         throw new Error("Download URL not received");
       }
     } catch (error) {
+      // Dismiss progress toast if still showing
+      if (progressToast) {
+        toast.dismiss(progressToast.id);
+      }
+      
       console.error("Download error:", error);
+      
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      
       toast({
-        title: "Download failed",
-        description: "There was an error preparing your download",
-        variant: "destructive"
+        title: "Download Failed",
+        description: errorMessage.includes('API') 
+          ? "Service temporarily unavailable. Please try again."
+          : "Unable to download this track. Try a different format or track.",
+        variant: "destructive",
+        duration: 6000
       });
     }
   };
