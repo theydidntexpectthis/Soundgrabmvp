@@ -60,7 +60,7 @@ export function SearchResults({ searchQuery }: SearchResultsProps) {
       
       // Dismiss progress toast
       if (progressToast) {
-        toast.dismiss(progressToast.id);
+        progressToast.dismiss();
       }
       
       if (downloadUrl) {
@@ -84,7 +84,7 @@ export function SearchResults({ searchQuery }: SearchResultsProps) {
     } catch (error) {
       // Dismiss progress toast if still showing
       if (progressToast) {
-        toast.dismiss(progressToast.id);
+        progressToast.dismiss();
       }
       
       console.error("Download error:", error);
@@ -168,9 +168,24 @@ export function SearchResults({ searchQuery }: SearchResultsProps) {
           </Card>
         ) : isError ? (
           <Card className="bg-surface rounded-lg overflow-hidden mb-6 p-8 text-center">
-            <h3 className="text-lg font-medium mb-2">Search Error</h3>
-            <p className="text-text-secondary mb-4">Sorry, we couldn't find any results. Please try again.</p>
-            <Button>Try Again</Button>
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
+              <Music className="h-8 w-8 text-red-600" />
+            </div>
+            <h3 className="text-lg font-medium mb-2">No Results Found</h3>
+            <p className="text-text-secondary mb-4">
+              {error instanceof Error && error.message.includes('API') 
+                ? "Service temporarily unavailable. Please try again in a moment."
+                : `No tracks found for "${searchQuery}". Try different keywords or check the spelling.`
+              }
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2 justify-center">
+              <Button variant="outline" onClick={() => window.location.reload()}>
+                Try Again
+              </Button>
+              <Button variant="default" onClick={() => setSortBy(sortBy === 'relevance' ? 'latest' : 'relevance')}>
+                Change Sort Order
+              </Button>
+            </div>
           </Card>
         ) : searchResults && searchResults.mainResult ? (
           <>
