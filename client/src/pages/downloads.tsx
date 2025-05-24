@@ -34,13 +34,37 @@ export default function DownloadsPage() {
     addToQueue(track);
   };
   
+  const queryClient = useQueryClient();
+
+  const handleBulkDownloadComplete = (newDownloads: any[]) => {
+    // Refresh download history after bulk download
+    queryClient.invalidateQueries({ queryKey: ['download-history'] });
+  };
+
   return (
     <div className="container mx-auto p-4">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold">Your Downloads</h1>
+        <h1 className="text-2xl md:text-3xl font-bold">Downloads</h1>
       </div>
-      
-      {isLoading ? (
+
+      <Tabs defaultValue="bulk-download" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="bulk-download" className="flex items-center gap-2">
+            <Link className="h-4 w-4" />
+            Paste URLs
+          </TabsTrigger>
+          <TabsTrigger value="history" className="flex items-center gap-2">
+            <FileAudio className="h-4 w-4" />
+            Your Downloads
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="bulk-download" className="mt-6">
+          <URLPasteBox onDownloadComplete={handleBulkDownloadComplete} />
+        </TabsContent>
+
+        <TabsContent value="history" className="mt-6">
+          {isLoading ? (
         <div className="grid grid-cols-1 gap-4">
           {Array(3).fill(0).map((_, i) => (
             <Card key={i} className="bg-surface">
@@ -139,17 +163,8 @@ export default function DownloadsPage() {
         </Card>
       )}
       
-      {/* Ad placement */}
-      <div className="mt-8 bg-surface-light rounded-lg p-4 flex items-center justify-between">
-        <div>
-          <p className="text-xs text-text-secondary mb-1">Sponsored</p>
-          <div className="text-sm mb-1">Premium Music Production Tools</div>
-          <p className="text-xs text-text-secondary">Professional-grade audio editing software for creators.</p>
-        </div>
-        <Button className="bg-accent text-white px-4 py-2 rounded-lg text-sm">
-          Try Free
-        </Button>
-      </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
